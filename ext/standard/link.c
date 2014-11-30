@@ -50,13 +50,6 @@
 #include "php_link.h"
 #include "php_string.h"
 
-struct php_user_stream_wrapper {
-	char * protoname;
-	char * classname;
-	zend_class_entry *ce;
-	php_stream_wrapper wrapper;
-};
-
 /* {{{ proto string readlink(string filename)
    Return the target of a symbolic link */
 PHP_FUNCTION(readlink)
