@@ -1574,7 +1574,7 @@ static int user_wrapper_read_link(php_stream_wrapper *wrapper, const char *url, 
 			php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s::" USERSTREAM_URL_READLINK " is not implemented!",
 					uwrap->classname);
 		} else {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s::" USERSTREAM_URL_READLINK " did not return a string!",
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s::" USERSTREAM_URL_READLINK " failed!",
 					uwrap->classname);
 		}
 		return FAILURE;
