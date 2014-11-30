@@ -50,33 +50,86 @@
 #include "php_link.h"
 #include "php_string.h"
 
+struct php_user_stream_wrapper {
+	char * protoname;
+	char * classname;
+	zend_class_entry *ce;
+	php_stream_wrapper wrapper;
+};
+
 /* {{{ proto string readlink(string filename)
    Return the target of a symbolic link */
 PHP_FUNCTION(readlink)
 {
 	char *link;
 	size_t link_len;
-	char buff[MAXPATHLEN];
-	int ret;
+	php_stream_wrapper *wrapper;
+	const char *local;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &link, &link_len) == FAILURE) {
 		return;
 	}
 
-	if (php_check_open_basedir(link TSRMLS_CC)) {
-		RETURN_FALSE;
+	wrapper = php_stream_locate_url_wrapper(link, &local, 0 TSRMLS_CC);
+
+	if (wrapper == &php_plain_files_wrapper) {
+		char buff[MAXPATHLEN];
+		int ret;
+
+		if (php_check_open_basedir(local TSRMLS_CC)) {
+			RETURN_FALSE;
+		}
+
+		ret = php_sys_readlink(local, buff, MAXPATHLEN-1);
+
+		if (ret == -1) {
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", strerror(errno));
+			RETURN_FALSE;
+		}
+		/* Append NULL to the end of the string */
+		buff[ret] = '\0';
+
+		RETURN_STRING(buff);
+	} else {
+		struct php_user_stream_wrapper *uwrap = (struct php_user_stream_wrapper*)wrapper->abstract;
+		php_stream_context *context = NULL;
+		zval object;
+		zval args[1];
+		zval zfuncname, zretval;
+		int call_result;
+
+		object_init_ex(&object, uwrap->ce);
+		add_property_null(&object, "context");
+
+		ZVAL_STRING(&args[0], link);
+		ZVAL_STRING(&zfuncname, "url_readlink");
+
+		call_result = call_user_function_ex(NULL,
+				&object,
+				&zfuncname,
+				&zretval,
+				2, args,
+				0, NULL	TSRMLS_CC);
+
+		zval_ptr_dtor(&object);
+		zval_ptr_dtor(&zfuncname);
+		zval_ptr_dtor(&args[0]);
+
+		if (call_result == SUCCESS && Z_TYPE(zretval) == IS_STRING) {
+			RETURN_ZVAL(&zretval, 0, 1);
+		} else {
+			zval_ptr_dtor(&zretval);
+
+			if (call_result == FAILURE) {
+				php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s::url_readlink is not implemented!",
+						uwrap->classname);
+			} else {
+				php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s::url_readlink did not return a string!",
+						uwrap->classname);
+			}
+			RETURN_FALSE;
+		}
 	}
-
-	ret = php_sys_readlink(link, buff, MAXPATHLEN-1);
-
-	if (ret == -1) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", strerror(errno));
-		RETURN_FALSE;
-	}
-	/* Append NULL to the end of the string */
-	buff[ret] = '\0';
-
-	RETURN_STRING(buff);
 }
 /* }}} */
 
