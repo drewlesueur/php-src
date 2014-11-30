@@ -1567,18 +1567,18 @@ static int user_wrapper_read_link(php_stream_wrapper *wrapper, const char *url, 
 		*resolved = zend_string_init(Z_STRVAL(zretval), Z_STRLEN(zretval), 1);
 		zval_ptr_dtor(&zretval);
 		return SUCCESS;
-	} else {
-		zval_ptr_dtor(&zretval);
-
-		if (call_result == FAILURE) {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s::" USERSTREAM_URL_READLINK " is not implemented!",
-					uwrap->classname);
-		} else {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s::" USERSTREAM_URL_READLINK " failed!",
-					uwrap->classname);
-		}
-		return FAILURE;
 	}
+
+	if (call_result == FAILURE) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s::" USERSTREAM_URL_READLINK " is not implemented!", uwrap->classname);
+	} else if (Z_TYPE(zretval) == IS_FALSE) {
+		/* Be quiet */
+	} else {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s::" USERSTREAM_URL_READLINK " failed!", uwrap->classname);
+	}
+
+	zval_ptr_dtor(&zretval);
+	return FAILURE;
 }
 
 php_stream_ops php_stream_userspace_ops = {
