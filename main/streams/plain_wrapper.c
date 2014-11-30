@@ -1384,6 +1384,27 @@ static int php_plain_files_metadata(php_stream_wrapper *wrapper, const char *url
 	return 1;
 }
 
+static int php_plain_files_read_link(php_stream_wrapper *wrapper, const char *url, zend_string** resolved, php_stream_context *context TSRMLS_DC)
+{
+	char buff[MAXPATHLEN];
+	int ret;
+
+	if (php_check_open_basedir(url TSRMLS_CC)) {
+		return FAILURE;
+	}
+
+	ret = php_sys_readlink(url, buff, MAXPATHLEN-1);
+
+	if (ret == -1) {
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", strerror(errno));
+		return FAILURE;
+	}
+	/* Append NULL to the end of the string */
+	buff[ret] = '\0';
+
+	*resolved = zend_string_init(buff, ret, 0);
+	return SUCCESS;
+}
 
 static php_stream_wrapper_ops php_plain_files_wrapper_ops = {
 	php_plain_files_stream_opener,
@@ -1396,7 +1417,8 @@ static php_stream_wrapper_ops php_plain_files_wrapper_ops = {
 	php_plain_files_rename,
 	php_plain_files_mkdir,
 	php_plain_files_rmdir,
-	php_plain_files_metadata
+	php_plain_files_metadata,
+	php_plain_files_read_link
 };
 
 PHPAPI php_stream_wrapper php_plain_files_wrapper = {

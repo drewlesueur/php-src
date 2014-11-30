@@ -64,43 +64,21 @@ PHP_FUNCTION(readlink)
 	char *link;
 	size_t link_len;
 	php_stream_wrapper *wrapper;
-	const char *local;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &link, &link_len) == FAILURE) {
 		return;
 	}
 
-	wrapper = php_stream_locate_url_wrapper(link, &local, 0 TSRMLS_CC);
+	wrapper = php_stream_locate_url_wrapper(link, NULL, 0 TSRMLS_CC);
+	if (wrapper->wops->url_readlink) {
+		zend_string *result;
 
-	if (wrapper == &php_plain_files_wrapper) {
-		char buff[MAXPATHLEN];
-		int ret;
-
-		if (php_check_open_basedir(local TSRMLS_CC)) {
-			RETURN_FALSE;
+		if (wrapper->wops->url_readlink(wrapper, link, &result, NULL TSRMLS_CC) == SUCCESS) {
+			RETURN_STR(result);
 		}
-
-		ret = php_sys_readlink(local, buff, MAXPATHLEN-1);
-
-		if (ret == -1) {
-			php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", strerror(errno));
-			RETURN_FALSE;
-		}
-		/* Append NULL to the end of the string */
-		buff[ret] = '\0';
-
-		RETURN_STRING(buff);
-	} else {
-		if (wrapper->wops->url_readlink) {
-			zend_string *result;
-
-			if (wrapper->wops->url_readlink(wrapper, link, &result, NULL TSRMLS_CC) == SUCCESS) {
-				RETURN_STR(result);
-			}
-		}
-
-		RETURN_FALSE;
 	}
+
+	RETURN_FALSE;
 }
 /* }}} */
 
