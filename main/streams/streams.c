@@ -2332,6 +2332,21 @@ PHPAPI int _php_stream_scandir(const char *dirname, zend_string **namelist[], in
 }
 /* }}} */
 
+/* {{{ _php_stream_readlink */
+PHPAPI int _php_stream_readlink(const char *path, zend_string** resolved, php_stream_context *context TSRMLS_DC)
+{
+	php_stream_wrapper *wrapper = NULL;
+
+	wrapper = php_stream_locate_url_wrapper(path, NULL, 0 TSRMLS_CC);
+	if (!wrapper || !wrapper->wops || !wrapper->wops->url_readlink) {
+		return 0;
+	}
+
+	return wrapper->wops->url_readlink(wrapper, path, resolved, context TSRMLS_CC);
+}
+/* }}} */
+
+
 /*
  * Local variables:
  * tab-width: 4

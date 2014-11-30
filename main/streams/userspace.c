@@ -54,6 +54,7 @@ static int user_wrapper_rmdir(php_stream_wrapper *wrapper, const char *url, int 
 static int user_wrapper_metadata(php_stream_wrapper *wrapper, const char *url, int option, void *value, php_stream_context *context TSRMLS_DC);
 static php_stream *user_wrapper_opendir(php_stream_wrapper *wrapper, const char *filename, const char *mode,
 		int options, char **opened_path, php_stream_context *context STREAMS_DC TSRMLS_DC);
+static int user_wrapper_read_link(php_stream_wrapper *wrapper, const char *url, zend_string** resolved, php_stream_context *context TSRMLS_DC);
 
 static php_stream_wrapper_ops user_stream_wops = {
 	user_wrapper_opener,
@@ -66,9 +67,9 @@ static php_stream_wrapper_ops user_stream_wops = {
 	user_wrapper_rename,
 	user_wrapper_mkdir,
 	user_wrapper_rmdir,
-	user_wrapper_metadata
+	user_wrapper_metadata,
+	user_wrapper_read_link
 };
-
 
 static void stream_wrapper_dtor(zend_resource *rsrc TSRMLS_DC)
 {
@@ -148,6 +149,7 @@ typedef struct _php_userstream_data php_userstream_data_t;
 #define USERSTREAM_SET_OPTION	"stream_set_option"
 #define USERSTREAM_TRUNCATE	"stream_truncate"
 #define USERSTREAM_METADATA	"stream_metadata"
+#define USERSTREAM_URL_READLINK	"url_readlink"
 
 /* {{{ class should have methods like these:
 
@@ -1531,6 +1533,52 @@ static int php_userstreamop_cast(php_stream *stream, int castas, void **retptr T
 	zval_ptr_dtor(&args[0]);
 
 	return ret;
+}
+
+static int user_wrapper_read_link(php_stream_wrapper *wrapper, const char *url, zend_string** resolved, php_stream_context *context TSRMLS_DC)
+{
+	struct php_user_stream_wrapper *uwrap = (struct php_user_stream_wrapper*)wrapper->abstract;
+	zval object;
+	zval args[1];
+	zval zfuncname, zretval;
+	int call_result;
+
+	/* create an instance of our class */
+	user_stream_create_object(uwrap, context, &object TSRMLS_CC);
+	if (Z_TYPE(object) == IS_UNDEF) {
+		return FAILURE;
+	}
+
+	ZVAL_STRING(&args[0], url);
+	ZVAL_STRING(&zfuncname, USERSTREAM_URL_READLINK);
+
+	call_result = call_user_function_ex(NULL,
+			&object,
+			&zfuncname,
+			&zretval,
+			1, args,
+			0, NULL	TSRMLS_CC);
+
+	zval_ptr_dtor(&object);
+	zval_ptr_dtor(&zfuncname);
+	zval_ptr_dtor(&args[0]);
+
+	if (call_result == SUCCESS && Z_TYPE(zretval) == IS_STRING) {
+		*resolved = zend_string_init(Z_STRVAL(zretval), Z_STRLEN(zretval), 1);
+		zval_ptr_dtor(&zretval);
+		return SUCCESS;
+	} else {
+		zval_ptr_dtor(&zretval);
+
+		if (call_result == FAILURE) {
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s::" USERSTREAM_URL_READLINK " is not implemented!",
+					uwrap->classname);
+		} else {
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s::" USERSTREAM_URL_READLINK " did not return a string!",
+					uwrap->classname);
+		}
+		return FAILURE;
+	}
 }
 
 php_stream_ops php_stream_userspace_ops = {

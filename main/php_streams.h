@@ -158,6 +158,9 @@ typedef struct _php_stream_wrapper_ops {
 	int (*stream_rmdir)(php_stream_wrapper *wrapper, const char *url, int options, php_stream_context *context TSRMLS_DC);
 	/* Metadata handling */
 	int (*stream_metadata)(php_stream_wrapper *wrapper, const char *url, int options, void *value, php_stream_context *context TSRMLS_DC);
+
+	/* Links */
+	int (*url_readlink)(php_stream_wrapper *wrapper, const char *url, zend_string** resolved, php_stream_context *context TSRMLS_DC);
 } php_stream_wrapper_ops;
 
 struct _php_stream_wrapper	{
@@ -357,6 +360,9 @@ PHPAPI int _php_stream_set_option(php_stream *stream, int option, int value, voi
 #define php_stream_set_option(stream, option, value, ptrvalue)	_php_stream_set_option((stream), (option), (value), (ptrvalue) TSRMLS_CC)
 
 #define php_stream_set_chunk_size(stream, size) _php_stream_set_option((stream), PHP_STREAM_OPTION_SET_CHUNK_SIZE, (size), NULL TSRMLS_CC)
+
+PHPAPI int _php_stream_readlink(const char *path,  zend_string** resolved, php_stream_context *context TSRMLS_DC);
+#define php_stream_readlink(path, resolved, context)	_php_stream_readlink(path, resolved, context TSRMLS_CC)
 
 END_EXTERN_C()
 

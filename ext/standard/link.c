@@ -91,44 +91,15 @@ PHP_FUNCTION(readlink)
 
 		RETURN_STRING(buff);
 	} else {
-		struct php_user_stream_wrapper *uwrap = (struct php_user_stream_wrapper*)wrapper->abstract;
-		php_stream_context *context = NULL;
-		zval object;
-		zval args[1];
-		zval zfuncname, zretval;
-		int call_result;
+		if (wrapper->wops->url_readlink) {
+			zend_string *result;
 
-		object_init_ex(&object, uwrap->ce);
-		add_property_null(&object, "context");
-
-		ZVAL_STRING(&args[0], link);
-		ZVAL_STRING(&zfuncname, "url_readlink");
-
-		call_result = call_user_function_ex(NULL,
-				&object,
-				&zfuncname,
-				&zretval,
-				2, args,
-				0, NULL	TSRMLS_CC);
-
-		zval_ptr_dtor(&object);
-		zval_ptr_dtor(&zfuncname);
-		zval_ptr_dtor(&args[0]);
-
-		if (call_result == SUCCESS && Z_TYPE(zretval) == IS_STRING) {
-			RETURN_ZVAL(&zretval, 0, 1);
-		} else {
-			zval_ptr_dtor(&zretval);
-
-			if (call_result == FAILURE) {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s::url_readlink is not implemented!",
-						uwrap->classname);
-			} else {
-				php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s::url_readlink did not return a string!",
-						uwrap->classname);
+			if (wrapper->wops->url_readlink(wrapper, link, &result, NULL TSRMLS_CC) == SUCCESS) {
+				RETURN_STR(result);
 			}
-			RETURN_FALSE;
 		}
+
+		RETURN_FALSE;
 	}
 }
 /* }}} */
