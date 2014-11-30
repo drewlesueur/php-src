@@ -62,7 +62,7 @@ PHP_FUNCTION(readlink)
 		return;
 	}
 
-	if (php_stream_readlink(link, &result, NULL TSRMLS_CC) == SUCCESS) {
+	if (php_stream_readlink(link, &result, NULL) == SUCCESS) {
 		RETURN_STR(result);
 	}
 
