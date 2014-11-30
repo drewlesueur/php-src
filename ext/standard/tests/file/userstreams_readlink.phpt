@@ -1,5 +1,5 @@
 --TEST--
-User-space streams: url_readlink()
+User-space streams: readlink()
 --FILE--
 <?php
 class test_wrapper {

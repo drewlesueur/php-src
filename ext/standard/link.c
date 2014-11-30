@@ -56,19 +56,14 @@ PHP_FUNCTION(readlink)
 {
 	char *link;
 	size_t link_len;
-	php_stream_wrapper *wrapper;
+	zend_string *result;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &link, &link_len) == FAILURE) {
 		return;
 	}
 
-	wrapper = php_stream_locate_url_wrapper(link, NULL, 0 TSRMLS_CC);
-	if (wrapper->wops->url_readlink) {
-		zend_string *result;
-
-		if (wrapper->wops->url_readlink(wrapper, link, &result, NULL TSRMLS_CC) == SUCCESS) {
-			RETURN_STR(result);
-		}
+	if (php_stream_readlink(link, &result, NULL TSRMLS_CC) == SUCCESS) {
+		RETURN_STR(result);
 	}
 
 	RETURN_FALSE;
@@ -80,32 +75,19 @@ PHP_FUNCTION(readlink)
 PHP_FUNCTION(linkinfo)
 {
 	char *link;
-	char *dirname;
-	size_t link_len, dir_len;
-	zend_stat_t sb;
-	int ret;
+	size_t link_len;
+	php_stream_statbuf stat;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "p", &link, &link_len) == FAILURE) {
 		return;
 	}
 
-	dirname = estrndup(link, link_len);
-	dir_len = php_dirname(dirname, link_len);
-
-	if (php_check_open_basedir(dirname TSRMLS_CC)) {
-		efree(dirname);
-		RETURN_FALSE;
+	if (php_stream_stat_path_ex(link, PHP_STREAM_URL_STAT_QUIET | PHP_STREAM_URL_STAT_LINK, &stat, NULL) == 0) {
+		RETURN_LONG(stat.sb.st_dev);
 	}
 
-	ret = VCWD_LSTAT(link, &sb);
-	if (ret == -1) {
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "%s", strerror(errno));
-		efree(dirname);
-		RETURN_LONG(-1L);
-	}
-
-	efree(dirname);
-	RETURN_LONG((zend_long) sb.st_dev);
+	php_error_docref(NULL TSRMLS_CC, E_WARNING, "No such file or directory");
+	RETURN_LONG(-1L);
 }
 /* }}} */
 
